@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+
+# Environment config (may hold local settings)
+.env
+
+# App-generated files
+logs/
+history/
+*.log
+*.csv
+
+# Test and coverage output
+htmlcov/
+.coverage
+.pytest_cache/
+
+# macOS
+.DS_Store
