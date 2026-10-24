@@ -90,3 +90,13 @@ def test_validate_rejects_non_positive_values(clean_env, monkeypatch, env_var, v
     monkeypatch.setenv(env_var, value)
     with pytest.raises(ConfigurationError):
         CalculatorConfig().validate()
+
+@pytest.mark.parametrize(
+    "env_var",
+    ["CALCULATOR_MAX_HISTORY_SIZE", "CALCULATOR_PRECISION", "CALCULATOR_MAX_INPUT_VALUE"],
+)
+@pytest.mark.parametrize("bad_value", ["abc", "ten", "1.2.3"])
+def test_non_numeric_settings_raise_configuration_error(clean_env, monkeypatch, env_var, bad_value):
+    monkeypatch.setenv(env_var, bad_value)
+    with pytest.raises(ConfigurationError, match=env_var):
+        CalculatorConfig()

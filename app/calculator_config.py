@@ -1,7 +1,7 @@
 """Configuration for the calculator, loaded from environment variables."""
 
 import os
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,6 +10,13 @@ from app.exceptions import ConfigurationError
 
 load_dotenv()
 
+def _read_setting(name, default, convert):
+    """Read an environment variable and convert it, or raise ConfigurationError."""
+    raw = os.getenv(name, default)
+    try:
+        return convert(raw)
+    except (ValueError, InvalidOperation):
+        raise ConfigurationError(f"{name} must be a valid number, got '{raw}'")
 
 class CalculatorConfig:
     """Calculator settings read from environment variables, with defaults."""
@@ -21,11 +28,13 @@ class CalculatorConfig:
         self.history_dir = Path(os.getenv("CALCULATOR_HISTORY_DIR", base_dir / "history"))
         self.log_file_name = os.getenv("CALCULATOR_LOG_FILE", "calculator.log")
         self.history_file_name = os.getenv("CALCULATOR_HISTORY_FILE", "calculator_history.csv")
-        self.max_history_size = int(os.getenv("CALCULATOR_MAX_HISTORY_SIZE", "100"))
+        self.max_history_size = _read_setting("CALCULATOR_MAX_HISTORY_SIZE", "100", int)
         self.auto_save = os.getenv("CALCULATOR_AUTO_SAVE", "true").lower() == "true"
-        self.precision = int(os.getenv("CALCULATOR_PRECISION", "10"))
+        self.precision = _read_setting("CALCULATOR_PRECISION", "10", int)
+        self.max_input_value = _read_setting("CALCULATOR_MAX_INPUT_VALUE", "1000000", Decimal)
         self.max_input_value = Decimal(os.getenv("CALCULATOR_MAX_INPUT_VALUE", "1000000"))
         self.default_encoding = os.getenv("CALCULATOR_DEFAULT_ENCODING", "utf-8")
+
 
     @property
     def log_file(self):
