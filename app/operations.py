@@ -48,11 +48,12 @@ class Power(Operation):
     """Return a raised to the power b."""
 
     def execute(self, a, b):
+        if a == 0 and b < 0:  # LBYL: check first
+            raise OperationError("Zero cannot be raised to a negative power")
         try:  # EAFP: try it and handle the failure
             return a ** b
-        except (ArithmeticError):
+        except ArithmeticError:
             raise OperationError("Invalid power operation")
-
 
 class Root(Operation):
     """Return a ** (Decimal(1) / b)."""
