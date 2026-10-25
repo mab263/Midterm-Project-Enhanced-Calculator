@@ -23,3 +23,12 @@ from app.operations import OperationFactory
 def test_operations_happy_path(name, a, b, expected):
     operation = OperationFactory.create_operation(name)
     assert operation.execute(Decimal(a), Decimal(b)) == Decimal(expected)
+    
+@pytest.mark.parametrize(
+    "a, b, expected",
+    [("27", "3", "3"), ("16", "2", "4")],
+)
+def test_root(a, b, expected):
+    operation = OperationFactory.create_operation("root")
+    result = operation.execute(Decimal(a), Decimal(b))
+    assert result == pytest.approx(Decimal(expected))
