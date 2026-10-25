@@ -2,11 +2,8 @@ from decimal import Decimal
 
 import pytest
 
-from app.operations import OperationFactory
-
 from app.exceptions import OperationError
-
-from app.operations import Addition
+from app.operations import OperationFactory, Addition
 
 @pytest.mark.parametrize(
     "name, a, b, expected",
