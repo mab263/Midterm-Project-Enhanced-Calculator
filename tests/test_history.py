@@ -6,7 +6,13 @@ import pytest
 
 from app.calculation import Calculation
 from app.exceptions import OperationError
-from app.history import load_history, save_history
+from app.history import (
+    AutoSaveObserver,
+    LoggingObserver,
+    Observer,
+    load_history,
+    save_history,
+)
 
 HEADER = "operation,operand1,operand2,result,timestamp"
 
@@ -78,3 +84,50 @@ def test_load_rejects_malformed_files(config, content):
 def test_save_failure_raises_operation_error(blocked_config):
     with pytest.raises(OperationError):
         save_history(make_history(), blocked_config)
+        
+class FakeLogger:
+    """Records messages so tests can check what was logged."""
+
+    def __init__(self):
+        self.messages = []
+
+    def info(self, message):
+        self.messages.append(("INFO", message))
+
+    def warning(self, message):
+        self.messages.append(("WARNING", message))
+
+
+def test_observer_is_abstract():
+    with pytest.raises(TypeError):
+        Observer()
+
+
+def test_logging_observer_logs_calculation_details():
+    logger = FakeLogger()
+    LoggingObserver(logger).update(make_history()[0])
+    level, message = logger.messages[0]
+    assert level == "INFO"
+    for expected in ("add", "2", "3", "5"):
+        assert expected in message
+
+
+def test_autosave_saves_when_enabled(config):
+    history = make_history()
+    observer = AutoSaveObserver(config, lambda: history, FakeLogger())
+    observer.update(history[-1])
+    assert load_history(config) == history
+
+
+def test_autosave_skips_when_disabled(config):
+    config.auto_save = False
+    observer = AutoSaveObserver(config, make_history, FakeLogger())
+    observer.update(make_history()[0])
+    assert not config.history_file.exists()
+
+
+def test_autosave_logs_warning_when_save_fails(blocked_config):
+    logger = FakeLogger()
+    observer = AutoSaveObserver(blocked_config, make_history, logger)
+    observer.update(make_history()[0])  # must not raise
+    assert logger.messages[0][0] == "WARNING"
