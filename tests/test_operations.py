@@ -63,3 +63,10 @@ def test_factory_is_case_insensitive():
 def test_factory_unknown_operation_raises():
     with pytest.raises(OperationError, match="bogus"):
         OperationFactory.create_operation("bogus")
+
+      
+def test_available_operations_lists_every_command():
+    assert set(OperationFactory.available_operations()) == {
+        "add", "subtract", "multiply", "divide", "power",
+        "root", "modulus", "int_divide", "percent", "abs_diff",
+    }

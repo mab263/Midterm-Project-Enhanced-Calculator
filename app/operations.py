@@ -120,3 +120,8 @@ class OperationFactory:
         if operation_class is None:
             raise OperationError(f"Unknown operation: '{name}'")
         return operation_class()
+    
+    @classmethod
+    def available_operations(cls) -> list:
+        """Return the command names that can be created."""
+        return list(cls._operations)
