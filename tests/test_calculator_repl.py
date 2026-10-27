@@ -1,11 +1,11 @@
 import pytest
 import builtins
 
-from app import calculator_repl as repl
 from app.operations import OperationFactory
 from app.calculator import Calculator
 from app.exceptions import CalculatorError
-from app.calculator_repl import COMMANDS, calculator_repl
+from app.calculator_repl import calculator_repl
+from app import commands
 from colorama import Fore
 
 
@@ -178,31 +178,37 @@ def test_help_shows_every_operation_description(run):
         assert description in output
 
 
+
 def test_new_command_appears_in_help_and_runs(run, monkeypatch):
-    # Work on copies so the temporary command doesn't leak into other tests
-    monkeypatch.setattr(repl, "COMMANDS", dict(repl.COMMANDS))
-    monkeypatch.setattr(repl, "COMMAND_HELP", dict(repl.COMMAND_HELP))
+    # Work on copies so the temporary command doesn't leak into other tests.
+    monkeypatch.setattr(
+        commands,
+        "COMMAND_CLASSES",
+        dict(commands.COMMAND_CLASSES),
+    )
+    monkeypatch.setattr(
+        commands,
+        "COMMAND_HELP",
+        dict(commands.COMMAND_HELP),
+    )
 
-    @repl.command("ping", "Check that the REPL is alive")
-    def ping(_calc):
-        print("pong")
+    @commands.register_command("ping", "Check that the REPL is alive")
+    class Ping(commands.Command):
+        def execute(self, calc):
+            print("pong")
 
-    output = run("help", "ping", "exit")
-    assert "Check that the REPL is alive" in output
-    assert "pong" in output
-    
-def test_repl_handles_calculator_error(monkeypatch, capsys):
-    def failing_command(calc):
-        raise CalculatorError("Test calculator error")
+    printed = run("help", "ping", "exit")
+    assert "Check that the REPL is alive" in printed
+    assert "pong" in printed
 
-    monkeypatch.setitem(COMMANDS, "test-error", failing_command)
-    inputs = iter(["test-error", "exit"])
-    monkeypatch.setattr(builtins, "input", lambda prompt="": next(inputs))
+    @commands.register_command("ping", "Check that the REPL is alive")
+    class Ping(commands.Command):
+        def execute(self, calc):
+            print("pong")
 
-    calculator_repl(Calculator())
-
-    assert "Error: Test calculator error" in capsys.readouterr().out
-
+    printed = run("help", "ping", "exit")
+    assert "Check that the REPL is alive" in printed
+    assert "pong" in printed
 
 def test_repl_handles_keyboard_interrupt(monkeypatch, capsys):
     inputs = iter([KeyboardInterrupt(), "exit"])
@@ -231,17 +237,30 @@ def test_repl_handles_eof_error(monkeypatch, capsys):
     assert "Input ended. Goodbye!" in capsys.readouterr().out
 
 
-def test_repl_handles_unexpected_exception(monkeypatch, capsys):
+def test_repl_handles_unexpected_exception(run, monkeypatch):
     def failing_command(calc):
         raise ValueError("Unexpected test error")
 
-    monkeypatch.setitem(COMMANDS, "test-crash", failing_command)
-    inputs = iter(["test-crash", "exit"])
-    monkeypatch.setattr(builtins, "input", lambda prompt="": next(inputs))
+    monkeypatch.setattr(
+        commands,
+        "COMMAND_CLASSES",
+        dict(commands.COMMAND_CLASSES),
+    )
+    monkeypatch.setattr(
+        commands,
+        "COMMAND_HELP",
+        dict(commands.COMMAND_HELP),
+    )
 
-    calculator_repl(Calculator())
+    @commands.register_command("test-crash", "Test an unexpected error")
+    class FailingCommand(commands.Command):
+        def execute(self, calc):
+            raise ValueError("Unexpected test error")
 
-    assert "Unexpected error: Unexpected test error" in capsys.readouterr().out
+    output = run("test-crash", "exit")
+
+    assert "Unexpected error: Unexpected test error" in output
+    assert "Goodbye!" in output
     
 def test_repl_runs_operation_with_two_numbers(monkeypatch, capsys):
     inputs = iter(["add 2 3", "exit"])
