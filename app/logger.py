@@ -2,6 +2,7 @@
 
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 
 
 class Logger:
@@ -19,8 +20,10 @@ class Logger:
             self._logger.removeHandler(handler)
             handler.close()
 
-        file_handler = logging.FileHandler(
+        file_handler = RotatingFileHandler(
             os.path.abspath(str(config.log_file)),
+            maxBytes=1_000_000,
+            backupCount=3,
             encoding=config.default_encoding,
         )
         file_handler.setFormatter(

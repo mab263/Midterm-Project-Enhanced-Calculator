@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.logger import Logger
+from logging.handlers import RotatingFileHandler
 
 
 @pytest.fixture
@@ -37,3 +38,9 @@ def test_creating_logger_twice_does_not_duplicate_lines(config):
     logger.info("only once")
     text = config.log_file.read_text(encoding="utf-8")
     assert text.count("only once") == 1
+    
+def test_log_file_rotates_instead_of_growing_forever(config):
+    handler = Logger(config)._logger.handlers[0]
+    assert isinstance(handler, RotatingFileHandler)
+    assert handler.maxBytes == 1_000_000
+    assert handler.backupCount == 3
