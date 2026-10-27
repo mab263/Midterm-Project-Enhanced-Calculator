@@ -23,13 +23,15 @@ A command-line calculator written in Python. It has a REPL interface, ten arithm
 | Observer | `LoggingObserver` and `AutoSaveObserver` react to each new calculation |
 | Memento | `CalculatorMemento` and `UndoRedoManager` provide undo and redo |
 | Facade | `Calculator` puts config, logging, validation, operations, history, and undo/redo behind one interface |
-| Decorator | `@OperationFactory.register` and `@command` register operations and commands, and the help menu is built from them |
+| Decorator | `@OperationFactory.register` and `@register_command` register operations and commands, and the help menu is built from them |
+| Command | Each REPL request is a `Command` object (`CalculationCommand`, `UndoCommand`, ...) that carries its own parameters and has an `execute` method |
 
 ## 🗂️ Project Structure
 
 ```
 app/
-├── calculator_repl.py     # REPL and commands
+├── calculator_repl.py     # REPL loop
+├── commands.py            # Command objects and parser
 ├── calculator.py          # Calculator facade
 ├── calculation.py         # Calculation record
 ├── calculator_config.py   # Settings from .env
@@ -57,6 +59,8 @@ python -m pip install -r requirements.txt
 ```
 
 ## 🛠️ Configuration
+
+.env holds local settings and is not committed, because it can contain machine-specific paths. .env.example is the committed template
 
 Copy the template and edit it if you want different settings:
 
@@ -89,6 +93,8 @@ Calculations are logged at INFO level, recoverable problems (such as a history f
 ```
 
 The log file is `logs/calculator.log` unless you change `CALCULATOR_LOG_DIR` or `CALCULATOR_LOG_FILE`.
+
+Undo, redo, save, load, and clear are logged too. The log file rotates at about 1 MB and keeps 3 older files.
 
 ## 👨🏻‍💻 Usage
 
@@ -153,3 +159,36 @@ This runs the whole suite and prints a coverage report. The run fails if coverag
 ## 🔎 Continuous Integration
 
 A GitHub Actions workflow (`.github/workflows/python-app.yml`) runs on every push and pull request to `main`. It installs the dependencies from `requirements.txt`, runs the tests with coverage, and fails the build if coverage is below 90%.
+
+## Optional Features
+
+All of the optional features are implemented.
+
+### Dynamic help menu (Decorator pattern)
+
+The help menu is built at runtime from what is registered, so it never goes out of date.
+
+- Operations register themselves with `@OperationFactory.register("add", "Add two numbers")`, which adds the class to the factory and stores its help text.
+- REPL commands register themselves with `@command("undo", "Undo the last calculation")`.
+- The `help` command reads both registries, so a new operation or command shows up in the menu without editing the help code.
+
+### Color-coded output (Colorama)
+
+`app/output.py` prints messages in color through Colorama:
+
+| Color | Used for |
+|---|---|
+| Green | Results and confirmations |
+| Red | Errors |
+| Yellow | Usage hints, cancellations, and "nothing to undo" |
+| Cyan | Headings and general messages |
+
+Color is only used when output goes to a terminal, so piped output and the test suite stay plain text. Set `NO_COLOR=1` to turn it off.
+
+### Command pattern
+
+Every REPL request is turned into a `Command` object, and the loop only parses, executes, and checks whether the session should end.
+
+- `parse_command` in `app/commands.py` converts a line of input into a command.
+- A `CalculationCommand` carries its operation name and numbers, so it can be stored, re-run, or queued. For example, a list of commands can be executed in order.
+- Commands that stop the REPL, like `exit`, set `ends_session = True` instead of being special-cased in the loop.
