@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from app.exceptions import OperationError
-from app.operations import OperationFactory, Addition
+from app.operations import Addition, Operation, OperationFactory
 
 @pytest.mark.parametrize(
     "name, a, b, expected",
@@ -70,3 +70,36 @@ def test_available_operations_lists_every_command():
         "add", "subtract", "multiply", "divide", "power",
         "root", "modulus", "int_divide", "percent", "abs_diff",
     }
+    
+def test_every_operation_has_a_description():
+    descriptions = OperationFactory.describe()
+    assert set(descriptions) == set(OperationFactory.available_operations())
+    assert all(descriptions.values())
+
+
+def test_registering_a_new_operation_adds_it_to_the_factory_and_help(monkeypatch):
+    # Work on copies so the temporary operation doesn't leak into other tests
+    monkeypatch.setattr(OperationFactory, "_operations", dict(OperationFactory._operations))
+    monkeypatch.setattr(OperationFactory, "_descriptions", dict(OperationFactory._descriptions))
+
+    @OperationFactory.register("negate_sum", "Negative of the sum")
+    class NegateSum(Operation):
+        def execute(self, a, b):
+            return -(a + b)
+
+    assert "negate_sum" in OperationFactory.available_operations()
+    assert OperationFactory.describe()["negate_sum"] == "Negative of the sum"
+    result = OperationFactory.create_operation("negate_sum").execute(Decimal("1"), Decimal("2"))
+    assert result == Decimal("-3")
+    
+def test_describe_single_operation():
+    assert OperationFactory.describe("add") == "Add two numbers"
+
+
+def test_describe_single_operation_case_insensitive():
+    assert OperationFactory.describe("ADD") == "Add two numbers"
+
+
+def test_describe_unknown_operation():
+    with pytest.raises(OperationError, match="Unknown operation"):
+        OperationFactory.describe("unknown")
