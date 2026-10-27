@@ -6,6 +6,7 @@ from app.operations import OperationFactory
 from app.calculator import Calculator
 from app.exceptions import CalculatorError
 from app.calculator_repl import COMMANDS, calculator_repl
+from colorama import Fore
 
 
 ALL_COMMANDS = [
@@ -258,3 +259,9 @@ def test_repl_shows_usage_for_wrong_number_of_arguments(monkeypatch, capsys):
     calculator_repl(Calculator())
 
     assert "Usage: add <number1> <number2>" in capsys.readouterr().out
+    
+def test_result_is_green_and_errors_are_red_in_a_terminal(run, monkeypatch):
+    monkeypatch.setattr("app.output.colors_enabled", lambda stream=None: True)
+    output = run("add 2 3", "add abc 1", "exit")
+    assert f"{Fore.GREEN}Result: 5" in output
+    assert f"{Fore.RED}Error: " in output
