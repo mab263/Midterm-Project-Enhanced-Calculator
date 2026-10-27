@@ -1,6 +1,12 @@
 import pytest
+import builtins
 
-from app.calculator_repl import calculator_repl
+from app import calculator_repl as repl
+from app.operations import OperationFactory
+from app.calculator import Calculator
+from app.exceptions import CalculatorError
+from app.calculator_repl import COMMANDS, calculator_repl
+
 
 ALL_COMMANDS = [
     "add", "subtract", "multiply", "divide", "power",
@@ -164,3 +170,91 @@ def test_default_calculator_is_created_when_none_is_given(calculator, monkeypatc
     monkeypatch.setattr("builtins.input", lambda prompt="": "exit")
     calculator_repl()
     assert "Goodbye!" in capsys.readouterr().out
+    
+def test_help_shows_every_operation_description(run):
+    output = run("help", "exit")
+    for description in OperationFactory.describe().values():
+        assert description in output
+
+
+def test_new_command_appears_in_help_and_runs(run, monkeypatch):
+    # Work on copies so the temporary command doesn't leak into other tests
+    monkeypatch.setattr(repl, "COMMANDS", dict(repl.COMMANDS))
+    monkeypatch.setattr(repl, "COMMAND_HELP", dict(repl.COMMAND_HELP))
+
+    @repl.command("ping", "Check that the REPL is alive")
+    def ping(_calc):
+        print("pong")
+
+    output = run("help", "ping", "exit")
+    assert "Check that the REPL is alive" in output
+    assert "pong" in output
+    
+def test_repl_handles_calculator_error(monkeypatch, capsys):
+    def failing_command(calc):
+        raise CalculatorError("Test calculator error")
+
+    monkeypatch.setitem(COMMANDS, "test-error", failing_command)
+    inputs = iter(["test-error", "exit"])
+    monkeypatch.setattr(builtins, "input", lambda prompt="": next(inputs))
+
+    calculator_repl(Calculator())
+
+    assert "Error: Test calculator error" in capsys.readouterr().out
+
+
+def test_repl_handles_keyboard_interrupt(monkeypatch, capsys):
+    inputs = iter([KeyboardInterrupt(), "exit"])
+
+    def fake_input(prompt=""):
+        value = next(inputs)
+        if isinstance(value, BaseException):
+            raise value
+        return value
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+
+    calculator_repl(Calculator())
+
+    assert "Operation cancelled" in capsys.readouterr().out
+
+
+def test_repl_handles_eof_error(monkeypatch, capsys):
+    def fake_input(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+
+    calculator_repl(Calculator())
+
+    assert "Input ended. Goodbye!" in capsys.readouterr().out
+
+
+def test_repl_handles_unexpected_exception(monkeypatch, capsys):
+    def failing_command(calc):
+        raise ValueError("Unexpected test error")
+
+    monkeypatch.setitem(COMMANDS, "test-crash", failing_command)
+    inputs = iter(["test-crash", "exit"])
+    monkeypatch.setattr(builtins, "input", lambda prompt="": next(inputs))
+
+    calculator_repl(Calculator())
+
+    assert "Unexpected error: Unexpected test error" in capsys.readouterr().out
+    
+def test_repl_runs_operation_with_two_numbers(monkeypatch, capsys):
+    inputs = iter(["add 2 3", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl(Calculator())
+
+    assert "Result: 5" in capsys.readouterr().out
+
+
+def test_repl_shows_usage_for_wrong_number_of_arguments(monkeypatch, capsys):
+    inputs = iter(["add 2", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl(Calculator())
+
+    assert "Usage: add <number1> <number2>" in capsys.readouterr().out
