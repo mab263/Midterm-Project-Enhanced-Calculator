@@ -105,6 +105,7 @@ class Calculator:
         if previous is None:  # not "if not previous": an empty history is a valid result
             return False
         self.history = previous
+        self.logger.info("Undo performed")
         return True
 
     def redo(self) -> bool:
@@ -113,6 +114,7 @@ class Calculator:
         if following is None:
             return False
         self.history = following
+        self.logger.info("Redo performed")
         return True
 
     # --- History ----------------------------------------------------------

@@ -190,3 +190,12 @@ def test_load_failure_leaves_history_unchanged(calculator, config):
     with pytest.raises(OperationError):
         calculator.load()
     assert len(calculator.history) == 1
+    
+def test_undo_and_redo_are_logged(calculator, config):
+    use(calculator, "add")
+    calculator.perform_operation("1", "1")
+    calculator.undo()
+    calculator.redo()
+    log = read_log(config)
+    assert "Undo performed" in log
+    assert "Redo performed" in log
